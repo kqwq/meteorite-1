@@ -8,90 +8,58 @@
         margin: 0;
       }
       .tooltip {
-        z-index: 100;
-        border: 1px solid #333;
-        background-color: #f7f5d1;
-        color: #333;
+        border: 1px solid dimgray;
+        background-color: cornsilk;
+        color: midnightblue;
         padding: 5px;
-        -moz-border-radius: 2px;
-        -webkit-border-radius: 2px;
         border-radius: 2px;
       }
     </style>
   </head>
   <body>
     <div id="globe"></div>
-
     <script>
-      function randomHexColor() {
-        return "#000000".replace(/0/g, function () {
-          return (~~(Math.random() * 16)).toString(16);
-        });
-      }
-      function csvToJSON(csv) {
-        const lines = csv.split("\n");
-        const headers = lines.shift().split(",");
-        return lines.map((line) => {
-          const obj = {};
-          const currentline = line.split(",");
-          headers.forEach((header, i) => {
-            obj[header] = currentline[i];
-          });
-          return obj;
-        });
-      }
-
-      // Create and configure globe
+      // 1. Create and configure the globe object
       const globe = new Globe()
-        // .lineHoverPrecision(0.5)
-
-        .globeImageUrl("//unpkg.com/three-globe/example/img/earth-day.jpg")
         .globeImageUrl("//unpkg.com/three-globe/example/img/earth-night.jpg")
-        .globeImageUrl(
-          "//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
-        )
-
-        //  /earth-day.jpg for a day view
-        //  /earth-night.jpg for a night view (HD)
-        //  /earth-blue-marble.png for a blue day view (HD)
         .backgroundImageUrl("//unpkg.com/three-globe/example/img/night-sky.png")
-        .pointResolution(24)
-        .pointColor("color")
         .pointAltitude("altitude")
+        .pointColor("color")
+        .pointLabel("label")
         .pointRadius("radius")
-        // Point tooltip, displaying a customizable label
-        .pointLabel("label");
-      // Point radius
-      // .pointRadius(0.5);
-      const globeElement = document.getElementById("globe");
-      globe(globeElement);
+        .pointResolution(24)(document.querySelector("#globe"));
 
-      // Get NASA meteorite landings data
-      fetch("./meteorite-landings.json")
+      // 2. Get NASA meteorite landings data
+      fetch("https://data.nasa.gov/resource/y77d-th95.json")
         .then((res) => res.json())
         .then((json) => {
-          let data = json.filter((d) => d.reclat && Number(d.reclat));
-          data = data.sort((a, b) => b.mass - a.mass).slice(0, 2000);
-          const gData = data.map((d) => {
-            const dMassCubed = d.mass ** (1 / 3);
-            const rad = dMassCubed * 0.02;
-            const height = 0.5 / dMassCubed;
-            return {
-              lat: parseFloat(d.reclat),
-              lng: parseFloat(d.reclong),
-              radius: rad,
-              altitude: height,
-              color: randomHexColor(),
-              label: `<div class="tooltip">
-              <b>${d.name}</b>
-              <div>Mass: ${Number(d.mass).toLocaleString()} g</div>
+          // 3. Filter out meteorites without coordinates
+          let data = json.filter((d) => Number(d.reclat));
+
+          // 4. Sort meteriotes by mass
+          data.sort((a, b) => b.mass - a.mass);
+
+          // 5. Choose the largest 2,000 meteorites
+          data = data.slice(0, 2000);
+
+          // 6. Format data
+          const globeData = data.map((d) => ({
+            lat: d.reclat,
+            lng: d.reclong,
+            radius: 0.02 * d.mass ** 0.333,
+            altitude: 0.5 / d.mass ** 0.333,
+            color: Math.random() * 16777216,
+            label: `
+            <div class="tooltip">
+              <b>${d.name} ${d.id}</b>
+              <div>Mass: ${(+d.mass).toLocaleString()} g</div>
               <div>Year: ${d.year.split("-")[0]}</div>
               <div>Class: ${d.recclass}</div>
-              </div>`,
-            };
-          });
-          console.log(data);
-          globe.pointsData(gData);
+            </div>`,
+          }));
+
+          // 7. Populate globe with data
+          globe.pointsData(globeData);
         });
     </script>
   </body>
